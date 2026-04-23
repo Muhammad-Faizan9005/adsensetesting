@@ -7,10 +7,25 @@ const showDemoButton = document.getElementById('showDemoButton');
 const clearButton = document.getElementById('clearButton');
 const applyButton = document.getElementById('applyButton');
 const copyButton = document.getElementById('copyButton');
+const liveSnippetInput = document.getElementById('liveSnippetInput');
+const runLiveButton = document.getElementById('runLiveButton');
+const diagnoseButton = document.getElementById('diagnoseButton');
+const loadLiveSampleButton = document.getElementById('loadLiveSampleButton');
+const requestAdButton = document.getElementById('requestAdButton');
+const adSlotInput = document.getElementById('adSlotInput');
+const liveMount = document.getElementById('liveMount');
+const adSlotStage = document.getElementById('adSlotStage');
 const sampleTemplate = document.getElementById('sampleTemplate');
 
 const storageKey = 'offerwall-test-lab-snippet';
+const liveStorageKey = 'offerwall-test-lab-live-snippet';
+const slotStorageKey = 'offerwall-test-lab-slot';
 const defaultSnippet = sampleTemplate.innerHTML.trim();
+const defaultLiveSnippet = `<section style="padding:16px; border-radius:14px; background:#0d1429; border:1px solid rgba(173,198,255,.3); color:#f4f7ff;">
+  <p style="margin:0 0 8px; font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:#8bb3ff;">Live page integration</p>
+  <h3 style="margin:0 0 8px; font-size:20px;">Top-level AdSense test surface</h3>
+  <p style="margin:0; color:#aab6d3; line-height:1.5;">This runs directly in the page (not in iframe sandbox), so use it to validate integration behavior on your deployed domain.</p>
+</section>`;
 const maxEvents = 6;
 let events = [];
 
@@ -60,6 +75,108 @@ function loadSnippet() {
   return localStorage.getItem(storageKey) || defaultSnippet;
 }
 
+function saveLiveSnippet(value) {
+  localStorage.setItem(liveStorageKey, value);
+}
+
+function loadLiveSnippet() {
+  return localStorage.getItem(liveStorageKey) || defaultLiveSnippet;
+}
+
+function saveSlot(value) {
+  localStorage.setItem(slotStorageKey, value);
+}
+
+function loadSlot() {
+  return localStorage.getItem(slotStorageKey) || '';
+}
+
+function hasAdsByGoogleScript() {
+  return Boolean(document.querySelector('script[src*="pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"]'));
+}
+
+function isAdsQueueReady() {
+  return Array.isArray(window.adsbygoogle);
+}
+
+function getPageContextSummary() {
+  const secure = window.location.protocol === 'https:' || window.location.hostname === 'localhost';
+  return {
+    host: window.location.host,
+    protocol: window.location.protocol,
+    secure,
+  };
+}
+
+function runLiveSnippet() {
+  const html = liveSnippetInput.value.trim();
+  if (!html) {
+    addEvent('Live validation', 'Add a live snippet first.', 'status-warn');
+    setStatus('Live snippet missing', 'status-warn');
+    return;
+  }
+
+  liveMount.innerHTML = html;
+  saveLiveSnippet(html);
+  addEvent('Live snippet', 'Snippet rendered in top-level page context.');
+  setStatus('Live snippet running', 'status-ok');
+}
+
+function runDiagnostics() {
+  const context = getPageContextSummary();
+  const hasScript = hasAdsByGoogleScript();
+  const queueReady = isAdsQueueReady();
+
+  const lines = [
+    `Host: ${context.host || 'unknown'}`,
+    `Protocol: ${context.protocol}`,
+    `Secure context: ${context.secure ? 'yes' : 'no'}`,
+    `AdSense script tag: ${hasScript ? 'found' : 'missing'}`,
+    `window.adsbygoogle queue: ${queueReady ? 'ready' : 'not ready'}`,
+  ];
+
+  const tone = hasScript ? 'status-ok' : 'status-warn';
+  addEvent('Diagnostics', lines.join(' | '), tone);
+  setStatus(hasScript ? 'Diagnostics ok' : 'Diagnostics warn', tone);
+}
+
+function clearAdSlot() {
+  adSlotStage.innerHTML = '<div style="color:#aab6d3;">Ad slot area is ready. Add your slot ID and request an ad.</div>';
+}
+
+function requestDisplayAd() {
+  const slot = adSlotInput.value.trim();
+  if (!slot) {
+    addEvent('Ad request', 'Enter your AdSense slot ID first.', 'status-warn');
+    setStatus('Missing slot ID', 'status-warn');
+    return;
+  }
+
+  if (!hasAdsByGoogleScript()) {
+    addEvent('Ad request', 'AdSense script is missing on this page.', 'status-warn');
+    setStatus('Script missing', 'status-warn');
+    return;
+  }
+
+  saveSlot(slot);
+  adSlotStage.innerHTML = `<ins class="adsbygoogle" style="display:block; min-height:90px;" data-ad-client="ca-pub-3567573687988202" data-ad-slot="${slot}" data-ad-format="auto" data-full-width-responsive="true"></ins>`;
+
+  try {
+    window.adsbygoogle = window.adsbygoogle || [];
+    window.adsbygoogle.push({});
+    addEvent('Ad request', `Ad request pushed for slot ${slot}.`);
+    setStatus('Ad request sent', 'status-ok');
+  } catch {
+    addEvent('Ad request', 'Ad request failed. Check console, domain approval, and policy status.', 'status-warn');
+    setStatus('Ad request failed', 'status-warn');
+  }
+}
+
+function loadLiveSample() {
+  liveSnippetInput.value = defaultLiveSnippet;
+  runLiveSnippet();
+}
+
 function applyCurrentSnippet(source = 'manual update') {
   const html = snippetInput.value.trim();
   if (!html) {
@@ -82,20 +199,35 @@ function showDemoOfferwall() {
 
 function clearWorkspace() {
   snippetInput.value = '';
+  liveSnippetInput.value = '';
+  adSlotInput.value = '';
   previewFrame.innerHTML = '<div style="color:#aab6d3; padding:8px 2px;">Preview cleared. Paste a snippet and apply it to render your offerwall test state.</div>';
+  liveMount.innerHTML = '<div style="color:#aab6d3;">Live area cleared. Add snippet and run on live page.</div>';
+  clearAdSlot();
   events = [];
   renderEvents();
   setStatus('Ready', 'status-ok');
   localStorage.removeItem(storageKey);
+  localStorage.removeItem(liveStorageKey);
+  localStorage.removeItem(slotStorageKey);
 }
 
 snippetInput.value = loadSnippet();
+liveSnippetInput.value = loadLiveSnippet();
+adSlotInput.value = loadSlot();
 applyPreview(snippetInput.value);
+liveMount.innerHTML = '<div style="color:#aab6d3;">Click Run on live page to execute your snippet in top-page context.</div>';
+clearAdSlot();
 addEvent('Session ready', 'Loaded your last saved snippet into the preview area.');
 
 applyButton.addEventListener('click', () => applyCurrentSnippet('the editor'));
 showDemoButton.addEventListener('click', showDemoOfferwall);
 clearButton.addEventListener('click', clearWorkspace);
+runLiveButton.addEventListener('click', runLiveSnippet);
+diagnoseButton.addEventListener('click', runDiagnostics);
+loadLiveSampleButton.addEventListener('click', loadLiveSample);
+requestAdButton.addEventListener('click', requestDisplayAd);
+adSlotInput.addEventListener('change', () => saveSlot(adSlotInput.value.trim()));
 copyButton.addEventListener('click', async () => {
   try {
     await navigator.clipboard.writeText(defaultSnippet);
@@ -117,3 +249,5 @@ window.addEventListener('message', (event) => {
     setStatus('Demo interaction captured', 'status-ok');
   }
 });
+
+runDiagnostics();

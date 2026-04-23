@@ -37,14 +37,34 @@
       <section class="grid-layout">
         <section class="card panel">
           <div class="panel-header">
-            <h2>Integration snippet</h2>
-            <span>HTML / script</span>
+            <h2>Sandbox snippet</h2>
+            <span>iframe preview</span>
           </div>
           <textarea id="snippetInput" spellcheck="false"></textarea>
           <div class="panel-footer">
             <button id="applyButton" class="primary-button">Apply to preview</button>
             <button id="copyButton" class="secondary-button">Copy sample</button>
           </div>
+        </section>
+
+        <section class="card panel live-panel">
+          <div class="panel-header">
+            <h2>Live page integration</h2>
+            <span>top-level execution</span>
+          </div>
+          <textarea id="liveSnippetInput" spellcheck="false"></textarea>
+          <div class="panel-footer">
+            <button id="runLiveButton" class="primary-button">Run on live page</button>
+            <button id="diagnoseButton" class="secondary-button">Check AdSense status</button>
+            <button id="loadLiveSampleButton" class="secondary-button">Load live sample</button>
+          </div>
+          <div class="slot-controls">
+            <label for="adSlotInput">Ad slot</label>
+            <input id="adSlotInput" placeholder="1234567890" />
+            <button id="requestAdButton" class="primary-button">Request display ad</button>
+          </div>
+          <div id="liveMount" class="live-mount"></div>
+          <div id="adSlotStage" class="ad-slot-stage"></div>
         </section>
 
         <section class="card panel preview-panel">
