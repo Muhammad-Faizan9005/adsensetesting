@@ -20,6 +20,7 @@ const sampleTemplate = document.getElementById('sampleTemplate');
 const storageKey = 'offerwall-test-lab-snippet';
 const liveStorageKey = 'offerwall-test-lab-live-snippet';
 const slotStorageKey = 'offerwall-test-lab-slot';
+const adsenseScriptSelector = 'script[src*="pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"]';
 const defaultSnippet = sampleTemplate.innerHTML.trim();
 const defaultLiveSnippet = `<section style="padding:16px; border-radius:14px; background:#0d1429; border:1px solid rgba(173,198,255,.3); color:#f4f7ff;">
   <p style="margin:0 0 8px; font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:#8bb3ff;">Live page integration</p>
@@ -28,6 +29,7 @@ const defaultLiveSnippet = `<section style="padding:16px; border-radius:14px; ba
 </section>`;
 const maxEvents = 6;
 let events = [];
+let adsenseScriptState = 'unknown';
 
 function addEvent(label, message, tone = 'status-ok') {
   const item = { label, message, tone, time: new Date() };
@@ -91,12 +93,53 @@ function loadSlot() {
   return localStorage.getItem(slotStorageKey) || '';
 }
 
+function getAdsByGoogleScript() {
+  return document.querySelector(adsenseScriptSelector);
+}
+
 function hasAdsByGoogleScript() {
-  return Boolean(document.querySelector('script[src*="pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"]'));
+  return Boolean(getAdsByGoogleScript());
+}
+
+function ensureAdsQueue() {
+  if (!window.adsbygoogle) {
+    window.adsbygoogle = [];
+  }
+
+  return window.adsbygoogle;
 }
 
 function isAdsQueueReady() {
-  return Array.isArray(window.adsbygoogle);
+  const queue = window.adsbygoogle;
+  return Boolean(queue && typeof queue.push === 'function');
+}
+
+function wireAdSenseScriptLifecycle() {
+  const script = getAdsByGoogleScript();
+  if (!script) {
+    adsenseScriptState = 'missing';
+    return;
+  }
+
+  adsenseScriptState = script.dataset.loadState || 'loading';
+  if (script.dataset.wired === 'true') {
+    return;
+  }
+
+  script.dataset.wired = 'true';
+  script.addEventListener('load', () => {
+    script.dataset.loadState = 'loaded';
+    adsenseScriptState = 'loaded';
+    addEvent('AdSense script', 'AdSense script loaded.', 'status-ok');
+    runDiagnostics();
+  });
+
+  script.addEventListener('error', () => {
+    script.dataset.loadState = 'error';
+    adsenseScriptState = 'error';
+    addEvent('AdSense script', 'AdSense script failed to load. Check ad blocker or CSP.', 'status-warn');
+    runDiagnostics();
+  });
 }
 
 function getPageContextSummary() {
@@ -125,6 +168,9 @@ function runLiveSnippet() {
 function runDiagnostics() {
   const context = getPageContextSummary();
   const hasScript = hasAdsByGoogleScript();
+  if (hasScript) {
+    ensureAdsQueue();
+  }
   const queueReady = isAdsQueueReady();
 
   const lines = [
@@ -132,12 +178,13 @@ function runDiagnostics() {
     `Protocol: ${context.protocol}`,
     `Secure context: ${context.secure ? 'yes' : 'no'}`,
     `AdSense script tag: ${hasScript ? 'found' : 'missing'}`,
+    `AdSense script state: ${adsenseScriptState}`,
     `window.adsbygoogle queue: ${queueReady ? 'ready' : 'not ready'}`,
   ];
 
-  const tone = hasScript ? 'status-ok' : 'status-warn';
+  const tone = hasScript && queueReady && adsenseScriptState !== 'error' ? 'status-ok' : 'status-warn';
   addEvent('Diagnostics', lines.join(' | '), tone);
-  setStatus(hasScript ? 'Diagnostics ok' : 'Diagnostics warn', tone);
+  setStatus(tone === 'status-ok' ? 'Diagnostics ok' : 'Diagnostics warn', tone);
 }
 
 function clearAdSlot() {
@@ -162,8 +209,8 @@ function requestDisplayAd() {
   adSlotStage.innerHTML = `<ins class="adsbygoogle" style="display:block; min-height:90px;" data-ad-client="ca-pub-3567573687988202" data-ad-slot="${slot}" data-ad-format="auto" data-full-width-responsive="true"></ins>`;
 
   try {
-    window.adsbygoogle = window.adsbygoogle || [];
-    window.adsbygoogle.push({});
+    const queue = ensureAdsQueue();
+    queue.push({});
     addEvent('Ad request', `Ad request pushed for slot ${slot}.`);
     setStatus('Ad request sent', 'status-ok');
   } catch {
@@ -219,6 +266,7 @@ applyPreview(snippetInput.value);
 liveMount.innerHTML = '<div style="color:#aab6d3;">Click Run on live page to execute your snippet in top-page context.</div>';
 clearAdSlot();
 addEvent('Session ready', 'Loaded your last saved snippet into the preview area.');
+wireAdSenseScriptLifecycle();
 
 applyButton.addEventListener('click', () => applyCurrentSnippet('the editor'));
 showDemoButton.addEventListener('click', showDemoOfferwall);
@@ -251,3 +299,4 @@ window.addEventListener('message', (event) => {
 });
 
 runDiagnostics();
+setTimeout(runDiagnostics, 1500);
