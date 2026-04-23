@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Offerwall Test Lab</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="bg-orb bg-orb-one"></div>
+    <div class="bg-orb bg-orb-two"></div>
+
+    <main class="app-shell">
+      <section class="hero card">
+        <div>
+          <p class="eyebrow">Google AdSense / Offerwall test bench</p>
+          <h1>Fast, simple, and safe place to test message flows.</h1>
+          <p class="hero-copy">
+            Paste your integration snippet, preview the result, and simulate the offerwall lifecycle
+            without rebuilding your main app.
+          </p>
+        </div>
+        <div class="hero-actions">
+          <button id="showDemoButton" class="primary-button">Show demo offerwall</button>
+          <button id="clearButton" class="secondary-button">Reset</button>
+        </div>
+      </section>
+
+      <section class="grid-layout">
+        <section class="card panel">
+          <div class="panel-header">
+            <h2>Integration snippet</h2>
+            <span>HTML / script</span>
+          </div>
+          <textarea id="snippetInput" spellcheck="false"></textarea>
+          <div class="panel-footer">
+            <button id="applyButton" class="primary-button">Apply to preview</button>
+            <button id="copyButton" class="secondary-button">Copy sample</button>
+          </div>
+        </section>
+
+        <section class="card panel preview-panel">
+          <div class="panel-header">
+            <h2>Preview</h2>
+            <span id="statusPill">Ready</span>
+          </div>
+          <div id="previewFrame" class="preview-frame"></div>
+          <div class="preview-note">
+            The preview is sandboxed so you can test layout and basic behavior safely.
+          </div>
+        </section>
+
+        <section class="card panel log-panel">
+          <div class="panel-header">
+            <h2>Event log</h2>
+            <span id="eventCount">0 events</span>
+          </div>
+          <div id="eventLog" class="event-log" aria-live="polite"></div>
+        </section>
+      </section>
+    </main>
+
+    <template id="sampleTemplate">
+      <div style="font-family: Inter, Arial, sans-serif; padding: 24px; background: #0b1020; color: #f5f7ff; border-radius: 20px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;">
+          <div>
+            <div style="font-size:12px; letter-spacing:0.16em; text-transform:uppercase; color:#8bb3ff;">Offerwall preview</div>
+            <h3 style="margin:10px 0 8px; font-size:28px;">Complete a task to unlock rewards</h3>
+            <p style="margin:0; max-width:52ch; color:#c8d2ff; line-height:1.6;">This is a local test surface for your AdSense offerwall messaging and layout checks.</p>
+          </div>
+          <button onclick="window.parent.postMessage({ type: 'offerwall-demo-click', action: 'open' }, '*')" style="border:0; border-radius:999px; padding:12px 18px; font-weight:700; cursor:pointer; background:#ffcc66; color:#111827;">Open offerwall</button>
+        </div>
+      </div>
+    </template>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
